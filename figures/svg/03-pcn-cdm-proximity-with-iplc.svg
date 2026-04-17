@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='576.00pt' height='216.00pt' viewBox='0 0 576.00 216.00'>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.00;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect width='100%' height='100%' style='stroke: none; fill: #FFFFFF;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NzYuMDB8MC4wMHwyMTYuMDA='>
+    <rect x='0.00' y='0.00' width='576.00' height='216.00' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwyMTYuMDA=)'>
+<rect x='0.00' y='0.00' width='576.00' height='216.00' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+</g>
+<defs>
+  <clipPath id='cpNzcuMjZ8NTA1LjgwfDIyLjc4fDE4NS4xMA=='>
+    <rect x='77.26' y='22.78' width='428.53' height='162.32' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNzcuMjZ8NTA1LjgwfDIyLjc4fDE4NS4xMA==)'>
+<polyline points='151.71,185.10 151.71,22.78 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='261.63,185.10 261.63,22.78 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='371.56,185.10 371.56,22.78 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='481.48,185.10 481.48,22.78 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='96.74,185.10 96.74,22.78 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='206.67,185.10 206.67,22.78 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='316.59,185.10 316.59,22.78 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='426.52,185.10 426.52,22.78 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<rect x='148.19' y='144.52' width='135.87' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFC44C;' />
+<rect x='96.74' y='144.52' width='51.44' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #4CC4FF;' />
+<rect x='261.19' y='28.58' width='225.13' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFC44C;' />
+<rect x='96.74' y='28.58' width='164.45' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #4CC4FF;' />
+<rect x='117.85' y='105.87' width='119.16' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFC44C;' />
+<rect x='96.74' y='105.87' width='21.11' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #4CC4FF;' />
+<rect x='151.27' y='67.23' width='99.81' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFC44C;' />
+<rect x='96.74' y='67.23' width='54.52' height='34.78' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #4CC4FF;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwyMTYuMDA=)'>
+<text x='72.33' y='164.94' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='54.25px' lengthAdjust='spacingAndGlyphs'>Direct overlap</text>
+<text x='72.33' y='126.29' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='48.38px' lengthAdjust='spacingAndGlyphs'>Within 10km</text>
+<text x='72.33' y='87.65' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='48.38px' lengthAdjust='spacingAndGlyphs'>Within 50km</text>
+<text x='72.33' y='49.00' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='21.03px' lengthAdjust='spacingAndGlyphs'>None</text>
+<text x='96.74' y='196.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='4.89px' lengthAdjust='spacingAndGlyphs'>0</text>
+<text x='206.67' y='196.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='14.67px' lengthAdjust='spacingAndGlyphs'>250</text>
+<text x='316.59' y='196.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='14.67px' lengthAdjust='spacingAndGlyphs'>500</text>
+<text x='426.52' y='196.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='14.67px' lengthAdjust='spacingAndGlyphs'>750</text>
+<text x='291.53' y='208.23' text-anchor='middle' style='font-size: 11.00px; font-family: "Arimo";' textLength='92.97px' lengthAdjust='spacingAndGlyphs'>Number of projects</text>
+<rect x='522.94' y='95.04' width='15.86' height='15.86' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #FFC44C;' />
+<rect x='522.94' y='112.32' width='15.86' height='15.86' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #4CC4FF;' />
+<text x='544.99' y='106.00' style='font-size: 8.80px; font-family: "Arimo";' textLength='20.05px' lengthAdjust='spacingAndGlyphs'>CDM</text>
+<text x='544.99' y='123.28' style='font-size: 8.80px; font-family: "Arimo";' textLength='18.59px' lengthAdjust='spacingAndGlyphs'>PCN</text>
+</g>
+</g>
+</svg>

@@ -1,0 +1,1783 @@
+---
+title: "Spatial Analysis and Data for Article 6 Projects of the Paris Agreement Crediting Mechanism"
+subtitle: "Code for the geospatial analysis"
+date: 2026-04-15
+authors:
+    - name: GRADELER Marie
+      affiliation: CIRAD, Land Matrix
+    - name: KUBITZA Christoph
+      affiliation: GIGA, Land Matrix
+    - name: ART Grace
+      affiliation: GIGA
+
+toc: true
+toc-depth: 2
+number-sections: true
+
+execute:
+    echo: false
+
+format:
+    html:
+        fig-height: 4
+        fig-width: 8
+        other-links:
+          - text: Paris Agreement Crediting Mechanism
+            href: https://unfccc.int/process-and-meetings/the-paris-agreement/article-64-mechanism
+          - text: Article 6.4 sustainable development tool
+            href: https://unfccc.int/sites/default/files/resource/A6.4-TOOL-AC-001.pdf
+          - text: UNFCCC Prior consideration notifications
+            href: https://unfccc.int/process-and-meetings/the-paris-agreement/paris-agreement-crediting-mechanism/A64_prior_consideration/pc-list
+    
+    pdf: 
+      fig-height: 4
+      fig-width: 8
+    
+    docx:
+      fig-height: 4
+      fig-width: 8
+      toc: true
+      toc-depth: 2
+      number-sections: true
+      highlight-style: github
+
+---
+
+# Disclaimer
+
+This document contains the code for Work Package 2 activities, in addition to the PCN and CDM located datasets. This is intended for further **documenting the process** and to be an **example on how to use the data**.
+
+**This does not replace the report published at the end of this study nor provides and interpretation of the results.**
+
+# Libraries
+
+```{r}
+#| label: "libs"
+#| echo: true
+#| message: false
+library(sf)
+library(readxl)
+library(tidyverse)
+
+library(knitr)
+
+library(ggplot2)
+library(paletteer)
+
+library(ggnewscale)
+library(scatterpie)
+
+library(patchwork)
+```
+
+<!-- READ DATA -->
+
+```{r}
+#| label: "GIS base"
+#| warning: false
+# --- CRS ---
+crs_wgs84 = 4326 # degrees
+crs_web_mercator = 3857 # meters
+
+# --- Countries ---
+world_regions <- st_read('data/countries.geojson', quiet = T)
+
+countries <- world_regions %>%
+  select(country, alpha_3)
+
+countries_centroids <- countries %>%
+  st_centroid() %>%
+  mutate(
+    lon = st_coordinates(geometry)[, 1],
+    lat = st_coordinates(geometry)[, 2]
+  )
+```
+
+```{r}
+#| label: "read source data"
+#| message: false
+#| warning: false
+# --- PCN ---
+pcn <- read_xlsx('data/a6-pcn.xlsx')
+pcn_locations <- st_read('data/a6-pcn-locations.geojson', quiet = T)
+
+# --- CDM ---
+cdm <- read_xlsx('data/a6-cdm.xlsx')
+cdm_locations <- st_read('data/a6-cdm-locations.geojson', quiet = T)
+
+# --- IPs&LC ---
+if (file.exists('data/iplc_land_simplified.gpkg')) {
+  iplc_simplified <- st_read(
+    'data/iplc_land_simplified.gpkg',
+    layer = "iplc_simplified",
+    quiet = T
+  )
+} else {
+  iplc_simplified <- NULL
+}
+```
+
+<!-- CONFIG -->
+
+```{r}
+#| label: "figures config"
+# --- Color palettes ---
+col_basemap_fill <- "grey90"
+col_basemap_col <- "white"
+col_basemap_highlight <- "grey80"
+
+pal_location_availability <- c(
+  "Available" = "#3D5A80",
+  "Unavailable or corrupted" = "#EE6C4D"
+)
+
+pal_activity_type <- c(
+  "Reforestation/Afforestation" = "#42BA90FF",
+  "Agriculture" = "#BEE948FF",
+  "Forest management" = "#008B00FF",
+  "Solar" = "#ECC700FF",
+  "Wind" = "#9041BAFF",
+  "Hydropower" = "#00B7EBFF",
+  "Bioenergy" = "#EC5578FF",
+  "Geothermal" = "#795C32FF",
+  "Mixed renewables" = "#D25D38FF",
+  "Tidal" = "#3A82E4FF"
+)
+
+pal_iplc_rec_form <- c(
+  "Acknowledged and not acknowledged by govt" = "#07868CFF",
+  "Acknowledged by govt" = "#72AAA1FF",
+  "Not acknowledged by govt" = "#B1C7B3FF",
+  "Unknown" = "#F1EAC8FF"
+)
+
+col_iplc_rec_form_na <- "gray80"
+
+pal_iplc_overlap <- c(
+  "Direct overlap" = "#AF2213",
+  "Within 10km" = "#D9792E",
+  "Within 50km" = "#F4C659",
+  "None" = "#6D62AFFF"
+)
+
+col_pcn <- "#4CC4FFFF"
+col_pcn_darker <- "#4CC4FFFF"
+
+col_cdm <- "#FFC44CFF"
+col_cdm_darker <- "#FFC44CFF"
+
+pal_pcn_cdm <- c(
+  "PCN" = col_pcn,
+  "CDM" = col_cdm
+)
+
+# --- Basemap ---
+basemap <- geom_sf(
+  data = filter(countries, alpha_3 != "ATA"),
+  fill = col_basemap_fill,
+  col = col_basemap_col
+)
+
+# --- Scatterpie maps config ---
+conf_pie_radius <- 3
+```
+
+```{r}
+#| label: "exports config"
+conf_dpi <- 300
+
+# --- World map ---
+conf_save_worldmap_height <- 4
+conf_save_worldmap_width <- 12
+
+# --- Horizontal chart ---
+conf_save_horizontal_bar_height <- 3
+conf_save_horizontal_bar_width <- 8
+
+# --- Regional map ---
+conf_africa_height <- 6
+conf_africa_width <- 8
+
+conf_asia_height <- 6
+conf_asia_width <- 12
+
+conf_lac_height <- 7
+conf_lac_width <- 9
+
+# --- Vertical chart ---
+conf_save_vertical_bar_height <- 6
+conf_save_vertical_bar_width <- 7
+```
+
+# Methodology
+
+## Focus on Land Intensive projects
+
+**Prior Considerations:**
+
+- Afforestation/Reforestation (Reforestation/Afforestation)
+- Agriculture (Agriculture)
+- Bioenergy
+- Forest management
+- Geothermal
+- Hydropower
+- Mixed renewables
+- Reforestation and ecosystem restoration (Reforestation/Afforestation)
+- Rewilding (Reforestation/Afforestation)
+- Rice cultivation (Agriculture)
+- Solar
+- Tree plantation (Reforestation/Afforestation)
+- Wind
+
+**CDM pipeline:**
+
+- Afforestation (Reforestation/Afforestation)
+- Agriculture
+- Biomass Energy
+- Geothermal
+- Hydro
+- Mixed renewables
+- Reforestation (Reforestation/Afforestation)
+- Solar
+- Tidal
+- Wind
+
+For the CDM projects, we only considered projects that are currently in transition.
+
+```{r}
+#| label: "list land intensive sectors"
+list_pcn_land_intensive_sectors <- c(
+  "Afforestation/Reforestation",
+  "Agriculture",
+  "Bioenergy",
+  "Forest management",
+  "Geothermal",
+  "Hydropower",
+  "Mixed renewables",
+  "Reforestation and ecosystem restoration",
+  "Rewilding",
+  "Rice cultivation",
+  "Solar",
+  "Tree plantation",
+  "Wind"
+)
+
+list_cdm_land_intensive_sectors <- c(
+  "Afforestation",
+  "Agriculture",
+  "Biomass Energy",
+  "Geothermal",
+  "Hydro",
+  "Mixed renewables",
+  "Reforestation",
+  "Solar",
+  "Tidal",
+  "Wind"
+)
+```
+
+## Geocoding
+
+Note that the code for the geocoding pipeline is not included here. It is deemed irrelevant considering the amount of work that was done by hand, as the process cannot be fully automatized.
+
+### PCN
+
+As it is a freeform textfield, the "Location" field is not standardized. Location information is retrieved, when available and containing no errors, according to the following steps.
+
+**Examples of errors:**
+
+- Wrong latitude-longitude format (e.g. two latitudes);
+- CRS impossible to identify;
+- Latitude-longitude outside of host country.
+
+**Locations steps:**
+
+We use regex (Regular Expressions^[https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions]) to extract substrings matching coordinates.
+
+- Identify numbers preceding "N" or "E";
+
+- Identify patterns like: xx°xx'xx.x"N.
+
+For cases that only mention villages names, we used the package [nominatimlite](https://dieghernan.github.io/nominatimlite/) for geocoding.
+
+For the cases where the automatic location retrieval did not work or where coordinates were corrupted (for example when a negative sign is missing), we try to locate the project by hand.
+
+After that, **for every located case regardless of the method used**, we join the points with countries boundaries and check whether or not the locations matches the "host country" registered in the source database. In case of a mismatch, we try to fix the geometry (for example, if latitude and longitude are swapped, or if when a different CRS (Coordinate Reference System^[<https://en.wikipedia.org/wiki/Spatial_reference_system>]) was used).
+
+We finish locating the project with a last round of manual fixes and mark the corrupted cases.
+
+### CDM
+
+Locations were retrieved from the Project Design Documents, available on the [CDM UNFCCC webiste](https://cdm.unfccc.int/Projects/projsearch.html). In addition, project names were also matched with existing databases on renewable energy (Global Energy Monitor^[https://globalenergymonitor.org/]) which contains coordinates.
+
+Once the locations collected, we applied the same methodology as for PCN: regex cleanup and extraction where needed, geocoding where coordinates are not available, manual check and fix, and verification with a spatial join that the project is located within the bounds of its host country.
+
+## Proximity with IPs & LC land
+
+### Data sources
+
+We use the latest public version of the LandMark^[LandMark. 2026. Indigenous Peoples’ Lands and Territories, Local Community Lands, Indicative Areas of Indigenous and Local Community Lands (v202604) [Dataset]. Available at: http://www.landmarkmap.org.] data polygons (April 2026). They locate Indigenous People’s and Local Communitie’s (IPs & LC) land and indicative IPs & LC land.
+
+Additional data is available in a point based format. These areas were also covered by the [Garnett](https://www.nature.com/articles/s41893-018-0100-6)^[Garnett, S.T., Burgess, N.D., Fa, J.E. et al. A spatial overview of the global importance of Indigenous lands for conservation. Nat Sustain 1, 369–374 (2018).] dataset in a polygon form, which are simpler to use in our case.
+
+The result layer is almost fully composed of LandMark data with additional patches from Garnett.
+
+### Process
+
+We first drew buffers around the PCN and CDM points to asses at which distance they would intersect IPs & LC land. This is done through a spatial join ("Join attributes by location", QGIS). Once the result aggregated, we look at each project ID. If one of its points is within an IPs & LC polygon, it is considered a "direct overlap". It its 10km buffers intersect it, it is considered "Within 10km" and if its 50km buffer intersects it, "Within 50km". If none of the above is true, the given value is "None".
+
+Note that this methodology considers the points the centroid of the project and do not take into account their true extent. In reality, some "Within 10km" cases could for example encroach on IPs & LC land. With this method, we tend to estimate a minimum number of overlaps between projects and IPs & LC land. Results from this overlap should be interpreted as an indication of risk and not as a final count of projects overlapping with IPs & LC land. More information is available under section 2.1 of the report.
+
+## Conflicts
+
+Presence of conflicts comes from the systemic review of cases that falls under Work Package 4 of this project. Please refer to the report for more details.
+
+# Results
+
+::: {.callout-note}
+The following section contains the code used to generate the graphics. The data is mostly pre-processed. Please note that we do not include the LandMark layer in this repository. You can find the source data on the [LandMark](https://landmarkmap.org/map) website. We also suggest that you simplify the layer before running the script. **This step is optional. If you run the script as-is, you will be able to generate all results.** The inclusion of LandMark data only serves to show the IPs & LC territories on the maps.
+
+If you include this data, put it under `/data/iplc_land_simplified.gpkg` and name the layer `iplc_simplified`, or edit the existing code as you see fit.
+:::
+
+In total, the source data includes `r nrow(pcn)` Prior Consideration projects and `r nrow(cdm)` CDM pipeline projects (`r nrow(filter(cdm, transition_request == "yes"))` currently in transition).
+
+`r nrow(filter(pcn, activity_type %in% list_pcn_land_intensive_sectors))` Prior Consideration projects and `r nrow(filter(cdm, type %in% list_cdm_land_intensive_sectors & transition_request == "yes"))` CDM pipeline projects are considered Land Intensive (for CDM, only projects in transition are included).
+
+`r nrow(pcn_locations)` Prior Consideration projects and `r nrow(cdm_locations)` CDM pipeline projects could be mapped.
+
+## Distribution by country
+
+Are included all projects that match the "land intensive" sectors, located or not.
+
+```{r}
+#| label: "distribution by country, PCN"
+#| warning: false
+# --- Scatterpie layer preparation ---
+levels_pcn_activities <- c(
+  "Reforestation/Afforestation",
+  "Agriculture",
+  "Forest management",
+  "Solar",
+  "Wind",
+  "Hydropower",
+  "Bioenergy",
+  "Geothermal",
+  "Mixed renewables"
+)
+
+scatterpie_pcn <- pcn %>%
+  filter(activity_type %in% list_pcn_land_intensive_sectors) %>%
+  # Create activity types categories
+  mutate(
+    activity_cat = case_when(
+      activity_type %in% c("Rice cultivation", "Agriculture") ~ "Agriculture",
+      activity_type %in%
+        c(
+          "Afforestation/Reforestation",
+          "Reforestation and ecosystem restoration",
+          "Tree plantation",
+          "Rewilding"
+        ) ~ "Reforestation/Afforestation",
+      .default = activity_type
+    )
+  ) %>%
+  relocate(activity_cat, .after = activity_type) %>%
+  # Format data for scatterpie
+  mutate(country_code = str_split(country_code, ', ')) %>%
+  unnest_longer(country_code) %>%
+  group_by(country_code, activity_cat) %>%
+  count() %>%
+  pivot_wider(names_from = activity_cat, values_from = n) %>%
+  left_join(countries_centroids, by = join_by('country_code' == 'alpha_3')) %>%
+  st_as_sf() %>%
+  # Replace NA with 0, else pies don’t show
+  mutate_at(
+    levels_pcn_activities,
+    ~ replace_na(., 0)
+  )
+
+# --- Scatterpie map ---
+plot_scatterpie_pcn <- scatterpie_pcn %>%
+  st_drop_geometry() %>%
+  mutate(radius = conf_pie_radius) %>%
+  ggplot() +
+  basemap +
+  # Highlight countries where we have data
+  geom_sf(
+    data = filter(countries, alpha_3 %in% unique(scatterpie_pcn$country_code)),
+    fill = fct_relevel(col_basemap_highlight, levels_pcn_activities),
+    col = col_basemap_col
+  ) +
+  # Scatterpie
+  geom_scatterpie(
+    aes(x = lon, y = lat, r = radius),
+    cols = levels_pcn_activities,
+    sorted_by_radius = TRUE,
+    alpha = 0.9,
+    legend_name = 'Activity type',
+    bg_circle_radius = 1,
+    color = NA,
+    col = "#fff"
+  ) +
+  scale_fill_manual(values = pal_activity_type) +
+  theme_void() +
+  labs(
+    title = "Proportion of land intensive PCN projects by sector and country"
+  )
+
+plot_scatterpie_pcn
+
+# --- Export map ---
+ggsave(
+  'figures/png/01-map-sectors-land-intensive-pcn.png',
+  plot = plot_scatterpie_pcn + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/01-map-sectors-land-intensive-pcn.svg',
+  plot = plot_scatterpie_pcn + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+```
+
+```{r}
+#| label: "distribution by country, CDM"
+#| warning: false
+# --- Scatterpie layer preparation ---
+levels_cdm_activities <- c(
+  "Reforestation/Afforestation",
+  "Agriculture",
+  "Solar",
+  "Wind",
+  "Hydropower",
+  "Bioenergy",
+  "Mixed renewables",
+  "Geothermal",
+  "Tidal"
+)
+
+scatterpie_cdm <- cdm %>%
+  filter(
+    type %in% list_cdm_land_intensive_sectors & transition_request == "yes"
+  ) %>%
+  # Drop NA countries
+  filter(!is.na(alpha_3)) %>%
+  # Create activity types categories
+  mutate(
+    activity_cat = case_when(
+      type %in%
+        c("Afforestation", "Reforestation") ~ "Reforestation/Afforestation",
+      type == "Hydro" ~ "Hydropower",
+      type == "Biomass Energy" ~ "Bioenergy",
+      .default = type
+    )
+  ) %>%
+  relocate(activity_cat, .after = type) %>%
+  # Format data for scatterpie
+  group_by(alpha_3, activity_cat) %>%
+  count() %>%
+  pivot_wider(names_from = activity_cat, values_from = n) %>%
+  left_join(countries_centroids, by = 'alpha_3') %>%
+  st_as_sf() %>%
+  # Replace NA with 0, else pies don’t show
+  mutate_at(
+    levels_cdm_activities,
+    ~ replace_na(., 0)
+  )
+
+# --- Scatterpie map ---
+plot_scatterpie_cdm <- scatterpie_cdm %>%
+  st_drop_geometry() %>%
+  mutate(radius = conf_pie_radius) %>%
+  ggplot() +
+  basemap +
+  # Highlight countries where we have data
+  geom_sf(
+    data = filter(countries, alpha_3 %in% unique(scatterpie_cdm$alpha_3)),
+    fill = fct_relevel(col_basemap_highlight, levels_cdm_activities),
+    col = col_basemap_col
+  ) +
+  # Scatterpie
+  geom_scatterpie(
+    aes(x = lon, y = lat, r = radius),
+    cols = levels_cdm_activities,
+    sorted_by_radius = TRUE,
+    alpha = 0.9,
+    legend_name = 'Activity type',
+    bg_circle_radius = 1,
+    color = NA,
+    col = "#fff"
+  ) +
+  scale_fill_manual(values = pal_activity_type) +
+  theme_void() +
+  labs(
+    title = "Proportion of land intensive CDM projects by sector and country"
+  )
+
+plot_scatterpie_cdm
+
+# --- Export map ---
+ggsave(
+  'figures/png/02-map-sectors-land-intensive-cdm.png',
+  plot = plot_scatterpie_cdm + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/02-map-sectors-land-intensive-cdm.svg',
+  plot = plot_scatterpie_cdm + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+```
+
+## Projects location
+
+Are included all **located** "land intensive" projects. This section is intended for annex methodology illustrations.
+
+`r nrow(pcn_locations)` PCM and `r nrow(cdm_locations)` CDM land intensive projects were located.
+
+```{r}
+#| label: "projects location, PCN"
+#| message: false
+# --- Map projects location ---
+pcn_locations %>%
+  ggplot() +
+  basemap +
+  geom_sf(size = 1) +
+  theme_void() +
+  labs(title = "PCN projects location")
+
+# --- Barplot projects location ---
+plot_projects_location_pcn <- pcn %>%
+  filter(activity_type %in% list_pcn_land_intensive_sectors) %>%
+  select(-po_a_duration_in_years) %>%
+  left_join(st_drop_geometry(pcn_locations, by = "id")) %>%
+  mutate(
+    location_precision = ifelse(
+      is.na(location_precision),
+      "no location",
+      location_precision
+    ),
+    location_info = case_when(
+      location_precision == "no location" |
+        corrupted_coordinates ~ "Unavailable or corrupted",
+      .default = "Available"
+    )
+  ) %>%
+  group_by(location_precision, location_info) %>%
+  count() %>%
+
+  # --- Plot starts here ---
+  ggplot(aes(
+    x = fct_rev(fct_relevel(
+      location_precision,
+      c("coordinates", "administrative", "no location")
+    )),
+    y = n,
+    fill = fct_reorder(location_info, n)
+  )) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = pal_location_availability) +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  guides(fill = guide_legend(reverse = T)) +
+  labs(
+    title = "Number of located land intensive PCN projects by location precision",
+    x = "",
+    y = "",
+    fill = "Location availability"
+  )
+
+plot_projects_location_pcn
+
+# --- Export ---
+ggsave(
+  'figures/png/annex01-projects-location-pcn.png',
+  plot = plot_projects_location_pcn + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/annex01-projects-location-pcn.svg',
+  plot = plot_projects_location_pcn + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+```
+
+```{r}
+#| label: "projects location, CDM"
+#| message: false
+# --- Map projects location ---
+cdm_locations %>%
+  ggplot() +
+  basemap +
+  geom_sf(size = 1) +
+  theme_void() +
+  labs(title = "CDM projects location")
+
+# --- Barplot projects location ---
+plot_projects_location_cdm <- cdm %>%
+  filter(
+    type %in% list_cdm_land_intensive_sectors & transition_request == "yes"
+  ) %>%
+  left_join(
+    cdm_locations,
+    by = join_by("ref", "ref_cpa"),
+    suffix = c("", "_dup")
+  ) %>%
+  select(
+    ref,
+    host_country,
+    coordinates,
+    location_accuracy,
+    location_precision,
+    is_located
+  ) %>%
+  mutate(
+    # Include precision for cases that are not located
+    is_located = ifelse(is.na(is_located), FALSE, TRUE),
+    location_precision = case_when(
+      !is_located & location_accuracy == "corrupted" ~ "coordinates",
+      !is_located &
+        location_accuracy %in%
+          c("country", "administrative") ~ "administrative",
+      is.na(location_precision) ~ "no location",
+      .default = location_precision
+    )
+  ) %>%
+  # Improve the is_located legend with human readable names
+  mutate(
+    location_info = ifelse(is_located, "available", "unavailable or corrupted")
+  ) %>%
+  group_by(location_precision, location_info) %>%
+  count() %>%
+  mutate(
+    location_precision = case_when(
+      location_precision == "administrative" ~ "Administrative",
+      location_precision == "coordinates" ~ "Coordinates",
+      location_precision == "no location" ~ "No location",
+      .default = location_precision
+    ),
+    location_info = case_when(
+      location_info == "available" ~ "Available",
+      location_info == "unavailable or corrupted" ~ "Unavailable or corrupted",
+      .default = location_info
+    )
+  ) %>%
+
+  # --- Plot starts here ---
+  ggplot(aes(
+    x = fct_rev(fct_relevel(
+      location_precision,
+      c("Coordinates", "Administrative", "No location")
+    )),
+    y = n,
+    fill = fct_reorder(location_info, n)
+  )) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = pal_location_availability) +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  guides(fill = guide_legend(reverse = T)) +
+  labs(
+    title = "Number of located CDM projects by location precision",
+    x = "",
+    y = "",
+    fill = "Location availability"
+  )
+
+plot_projects_location_cdm
+
+# --- Export ---
+ggsave(
+  'figures/png/annex02-projects-location-cdm.png',
+  plot = plot_projects_location_cdm + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/annex02-projects-location-cdm.svg',
+  plot = plot_projects_location_cdm + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+```
+
+## Risks: overlap with IPs & LC land
+
+Are included all **located** "land intensive" projects.
+
+### Global results
+
+```{r}
+#| label: "overlap with IPs&LC, data prep"
+#| warning: false
+# --- Human readable names ---
+pcn_locations_labels <- pcn_locations %>%
+  mutate(
+    iplc_overlap_proximity = case_when(
+      iplc_overlap_proximity == "direct" ~ "Direct overlap",
+      iplc_overlap_proximity == "10km" ~ "Within 10km",
+      iplc_overlap_proximity == "50km" ~ "Within 50km",
+      .default = "None",
+    )
+  )
+
+cdm_locations_labels <- cdm_locations %>%
+  mutate(
+    iplc_overlap_proximity = case_when(
+      iplc_overlap_proximity == "direct" ~ "Direct overlap",
+      iplc_overlap_proximity == "10km" ~ "Within 10km",
+      iplc_overlap_proximity == "50km" ~ "Within 50km",
+      .default = "None",
+    )
+  )
+
+# --- Factor levels ---
+levels_iplc_distance <- c(
+  "Direct overlap",
+  "Within 10km",
+  "Within 50km",
+  "None"
+)
+```
+
+```{r}
+#| label: "overlap with IPs&LC, PCN"
+# --- Aggregation ---
+stats_pcn_overlaps_global <- pcn_locations_labels %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(
+    iplc_overlap_proximity = as.factor(iplc_overlap_proximity) %>%
+      fct_relevel(levels_iplc_distance)
+  ) %>%
+  arrange(iplc_overlap_proximity) %>%
+  # --- Rename ---
+  rename(
+    "Overlap with IPs&LC territories" = iplc_overlap_proximity,
+    "IPs&LC territory recognition status" = iplc_overlap_form_rec,
+    "Number of projects" = n
+  )
+
+# --- Tables ---
+stats_pcn_overlaps_global %>%
+  group_by(`Overlap with IPs&LC territories`) %>%
+  summarise(`Number of projects` = sum(`Number of projects`)) %>%
+  kable(
+    caption = "Number of PCN projects overlapping with or close to IPs&LC territories"
+  )
+
+stats_pcn_overlaps_global %>%
+  kable(
+    caption = "Number of PCN projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status"
+  )
+
+# --- Barplot ---
+stats_pcn_overlaps_global %>%
+  ggplot(aes(
+    x = fct_rev(fct_relevel(
+      `Overlap with IPs&LC territories`,
+      levels_iplc_distance
+    )),
+    y = `Number of projects`,
+    fill = `IPs&LC territory recognition status`
+  )) +
+  geom_bar(stat = "identity", position = "stack") +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  labs(
+    title = "PCN projects proximity with IPs&LC territories by territory recognition status",
+    x = "",
+    y = ""
+  )
+```
+
+```{r}
+#| label: "overlap with IPs&LC, CDM"
+# --- Aggregation ---
+stats_cdm_overlaps_global <- cdm_locations_labels %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(
+    iplc_overlap_proximity = as.factor(iplc_overlap_proximity) %>%
+      fct_relevel(levels_iplc_distance)
+  ) %>%
+  arrange(iplc_overlap_proximity) %>%
+  # --- Rename ---
+  rename(
+    "Overlap with IPs&LC territories" = iplc_overlap_proximity,
+    "IPs&LC territory recognition status" = iplc_overlap_form_rec,
+    "Number of projects" = n
+  )
+
+# --- Tables ---
+stats_cdm_overlaps_global %>%
+  group_by(`Overlap with IPs&LC territories`) %>%
+  summarise(`Number of projects` = sum(`Number of projects`)) %>%
+  kable(
+    caption = "Number of CDM projects overlapping with or close to IPs&LC territories"
+  )
+
+stats_cdm_overlaps_global %>%
+  kable(
+    caption = "Number of CDM projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status"
+  )
+
+# --- Barplot ---
+stats_cdm_overlaps_global %>%
+  ggplot(aes(
+    x = fct_rev(fct_relevel(
+      `Overlap with IPs&LC territories`,
+      levels_iplc_distance
+    )),
+    y = `Number of projects`,
+    fill = `IPs&LC territory recognition status`
+  )) +
+  geom_bar(stat = "identity", position = "stack") +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  labs(
+    title = "CDM projects proximity with IPs&LC territories by territory recognition status",
+    x = "",
+    y = ""
+  )
+```
+
+```{r}
+#| label: "IPs&LC overlaps total, PCN and CDM"
+plot_proximity_with_iplc <- pcn_locations_labels %>%
+  st_drop_geometry() %>%
+  select(iplc_overlap_proximity) %>%
+  mutate(source = "PCN") %>%
+  # Add CDM
+  bind_rows(
+    cdm_locations_labels %>%
+      st_drop_geometry() %>%
+      select(iplc_overlap_proximity) %>%
+      mutate(source = "CDM")
+  ) %>%
+  # Group and count
+  group_by(iplc_overlap_proximity, source) %>%
+  count() %>%
+  # Plot
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = source
+  )) +
+  geom_bar(stat = 'identity', position = 'stack') +
+  scale_fill_manual(values = pal_pcn_cdm) +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank()) +
+  labs(
+    title = "Proximity of CDM and PCN projects to IPs&LC territories",
+    x = "",
+    y = "Number of projects",
+    fill = ""
+  )
+
+plot_proximity_with_iplc
+
+# --- Export ---
+ggsave(
+  'figures/png/03-pcn-cdm-proximity-with-iplc.png',
+  plot = plot_proximity_with_iplc + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/03-pcn-cdm-proximity-with-iplc.svg',
+  plot = plot_proximity_with_iplc + labs(title = ''),
+  height = conf_save_horizontal_bar_height,
+  width = conf_save_horizontal_bar_width,
+  dpi = conf_dpi
+)
+```
+
+### Africa
+
+```{r}
+#| label: "IPs&LC overlaps Africa, data"
+continent_africa_countries <- countries %>%
+  filter(alpha_3 %in% filter(world_regions, region_un == "Africa")$alpha_3)
+
+continent_africa_iplc <- if (!is.null(iplc_simplified)) {
+  geom_sf(
+    data = filter(
+      iplc_simplified,
+      iso_code %in% continent_africa_countries$alpha_3
+    ),
+    aes(fill = form_rec),
+    col = "transparent"
+  )
+} else {
+  NULL
+}
+```
+
+```{r}
+#| label: "IPs&LC overlaps Africa, PCN"
+#| warning: false
+# --- Table ---
+pcn_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of PCN projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Africa)"
+  )
+
+# --- Barplot ---
+plot_africa_pcn_bar <- pcn_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_africa_pcn_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/04-A-plot-Africa-pcn.png',
+  plot = plot_africa_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/04-A-plot-Africa-pcn.svg',
+  plot = plot_africa_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_africa_pcn_map <- pcn_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_africa_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_col
+  ) +
+  # --- IPLC ---
+  continent_africa_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = "grey70"
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_africa_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  coord_sf(
+    xlim = c(-15, 58.10), # Latitude
+    ylim = c(40, -37.65) # Longitude
+  ) +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_africa_pcn_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/04-A-map-Africa-pcn.png',
+  plot = plot_africa_pcn_map + labs(title = ''),
+  height = conf_africa_height,
+  width = conf_africa_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/04-A-map-Africa-pcn.svg',
+  plot = plot_africa_pcn_map + labs(title = ''),
+  height = conf_africa_height,
+  width = conf_africa_width,
+  dpi = conf_dpi
+)
+```
+
+```{r}
+#| label: "IPs&LC overlaps Africa, CDM"
+#| warning: false
+# --- Table ---
+cdm_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of CDM projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Africa)"
+  )
+
+# --- Barplot ---
+plot_africa_cdm_bar <- cdm_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_africa_cdm_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/04-B-plot-Africa-cdm.png',
+  plot = plot_africa_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/04-B-plot-Africa-cdm.svg',
+  plot = plot_africa_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_africa_cdm_map <- cdm_locations_labels %>%
+  filter(str_detect(region, "Africa")) %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_africa_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_col
+  ) +
+  # --- IPLC ---
+  continent_africa_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_africa_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  coord_sf(
+    xlim = c(-15, 58.10), # Latitude
+    ylim = c(40, -37.65) # Longitude
+  ) +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_africa_cdm_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/04-B-map-Africa-cdm.png',
+  plot = plot_africa_cdm_map + labs(title = ''),
+  height = conf_africa_height,
+  width = conf_africa_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/04-B-map-Africa-cdm.svg',
+  plot = plot_africa_cdm_map + labs(title = ''),
+  height = conf_africa_height,
+  width = conf_africa_width,
+  dpi = conf_dpi
+)
+```
+
+### Asia & Oceania
+
+```{r}
+#| label: "IPs&LC overlaps Asia & Oceania, data"
+continent_asia_countries <- countries %>%
+  filter(
+    alpha_3 %in%
+      filter(world_regions, region_un == "Asia")$alpha_3 |
+      alpha_3 == "PNG"
+  )
+
+continent_asia_iplc <- if (!is.null(iplc_simplified)) {
+  geom_sf(
+    data = filter(
+      iplc_simplified,
+      iso_code %in% continent_asia_countries$alpha_3
+    ),
+    aes(fill = form_rec),
+    col = "transparent"
+  )
+} else {
+  NULL
+}
+```
+
+```{r}
+#| label: "IPs&LC overlaps Asia & Oceania, PCN"
+#| warning: false
+# --- Table ---
+pcn_locations_labels %>%
+  filter(str_detect(region, "Asia") | country_code == "PNG") %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of PCN projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Asia & Oceania)"
+  )
+
+# --- Barplot ---
+plot_asia_pcn_bar <- pcn_locations_labels %>%
+  filter(str_detect(region, "Asia") | country_code == "PNG") %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_asia_pcn_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/06-A-plot-AsiaOceania-pcn.png',
+  plot = plot_asia_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/06-A-plot-AsiaOceania-pcn.svg',
+  plot = plot_asia_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_asia_pcn_map <- pcn_locations_labels %>%
+  filter(str_detect(region, "Asia") | country_code == "PNG") %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_asia_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_col
+  ) +
+  # --- IPLC ---
+  continent_asia_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_asia_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_asia_pcn_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/06-A-map-AsiaOceania-pcn.png',
+  plot = plot_asia_pcn_map + labs(title = ''),
+  height = conf_asia_height,
+  width = conf_asia_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/06-A-map-AsiaOceania-pcn.svg',
+  plot = plot_asia_pcn_map + labs(title = ''),
+  height = conf_asia_height,
+  width = conf_asia_width,
+  dpi = conf_dpi
+)
+```
+
+```{r}
+#| label: "IPs&LC overlaps Asia & Oceania, CDM"
+#| warning: false
+# --- Table ---
+cdm_locations_labels %>%
+  filter(str_detect(region, "Asia") | host_country == "Papua New Guinea") %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of CDM projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Asia & Oceania)"
+  )
+
+# --- Barplot ---
+plot_asia_cdm_bar <- cdm_locations_labels %>%
+  filter(str_detect(region, "Asia") | host_country == "Papua New Guinea") %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_asia_cdm_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/06-B-plot-AsiaOceania-cdm.png',
+  plot = plot_asia_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/06-B-plot-AsiaOceania-cdm.svg',
+  plot = plot_asia_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_asia_cdm_map <- cdm_locations_labels %>%
+  filter(str_detect(region, "Asia") | host_country == "Papua New Guinea") %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_asia_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_col
+  ) +
+  # --- IPLC ---
+  continent_asia_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_asia_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_asia_cdm_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/06-B-map-AsiaOceania-cdm.png',
+  plot = plot_asia_cdm_map + labs(title = ''),
+  height = conf_asia_height,
+  width = conf_asia_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/06-B-map-AsiaOceania-cdm.svg',
+  plot = plot_asia_cdm_map + labs(title = ''),
+  height = conf_asia_height,
+  width = conf_asia_width,
+  dpi = conf_dpi
+)
+```
+
+### Latin America and the Caribbean
+
+```{r}
+#| label: "IPs&LC overlaps LAC, data"
+continent_americas_countries <- countries %>%
+  filter(
+    alpha_3 %in%
+      filter(
+        world_regions,
+        subregion %in% c("South America", "Central America", "Caribbean")
+      )$alpha_3
+  )
+
+continent_asia_iplc <- if (!is.null(iplc_simplified)) {
+  geom_sf(
+    data = filter(
+      iplc_simplified,
+      iso_code %in% continent_americas_countries$alpha_3
+    ),
+    aes(fill = form_rec),
+    col = "transparent"
+  )
+} else {
+  NULL
+}
+```
+
+```{r}
+#| label: "IPs&LC overlaps LAC, PCM"
+#| warning: false
+# --- Table ---
+pcn_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of PCN projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Latin America and the Caribbean)"
+  )
+
+# --- Barplot ---
+plot_lac_pcn_bar <- pcn_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_lac_pcn_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/05-A-plot-LAC-pcn.png',
+  plot = plot_lac_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/05-A-plot-LAC-pcn.svg',
+  plot = plot_lac_pcn_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_lac_pcn_map <- pcn_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_americas_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_col
+  ) +
+  # --- IPLC ---
+  continent_asia_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_americas_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_lac_pcn_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/05-A-map-LAC-pcn.png',
+  plot = plot_lac_pcn_map + labs(title = ''),
+  height = conf_lac_height,
+  width = conf_lac_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/05-A-map-LAC-pcn.svg',
+  plot = plot_lac_pcn_map + labs(title = ''),
+  height = conf_lac_height,
+  width = conf_lac_width,
+  dpi = conf_dpi
+)
+```
+
+```{r}
+#| label: "IPs&LC overlaps LAC, CDM"
+#| warning: false
+# --- Table ---
+cdm_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  kable(
+    caption = "Number of CDM projects overlapping with or close to IPs&LC territories, by IPs&LC recognition status (Latin America and the Caribbean)"
+  )
+
+# --- Barplot ---
+plot_lac_cdm_bar <- cdm_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  st_drop_geometry() %>%
+  group_by(iplc_overlap_proximity, iplc_overlap_form_rec) %>%
+  count() %>%
+  # --- Plot ---
+  ggplot(aes(
+    x = fct_relevel(iplc_overlap_proximity, levels_iplc_distance),
+    y = n,
+    fill = iplc_overlap_form_rec
+  )) +
+  geom_bar(stat = "identity") +
+  # --- Theme ---
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank()) +
+  # --- Labels ---
+  labs(x = "", y = "", fill = "IPs&LC territory recognition status")
+
+plot_lac_cdm_bar
+
+# --- Export barplot ---
+ggsave(
+  'figures/png/05-B-plot-LAC-cdm.png',
+  plot = plot_lac_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/05-B-plot-LAC-cdm.svg',
+  plot = plot_lac_cdm_bar + labs(title = ''),
+  height = conf_save_vertical_bar_height,
+  width = conf_save_vertical_bar_width,
+  dpi = conf_dpi
+)
+
+# --- Map ---
+plot_lac_cdm_map <- cdm_locations_labels %>%
+  filter(str_detect(region, "Americas")) %>%
+  # --- Basemap ---
+  ggplot() +
+  geom_sf(
+    data = continent_americas_countries,
+    fill = col_basemap_fill,
+    col = col_basemap_fill
+  ) +
+  # --- IPLC ---
+  continent_asia_iplc +
+  scale_fill_manual(
+    values = pal_iplc_rec_form,
+    na.value = col_iplc_rec_form_na
+  ) +
+  # --- Country borders overlay ---
+  geom_sf(
+    data = continent_americas_countries,
+    fill = "transparent",
+    col = col_basemap_col
+  ) +
+  # --- Projects ---
+  geom_sf(
+    aes(
+      col = fct_relevel(iplc_overlap_proximity, levels_iplc_distance)
+    ),
+    size = 2
+  ) +
+  scale_color_manual(values = pal_iplc_overlap) +
+  # --- Theme ---
+  theme_void() +
+  labs(
+    col = "Project distance to\nIPs&LC territories",
+    fill = "IPs&LC territory\nrecognition status"
+  )
+
+plot_lac_cdm_map
+
+# --- Export map ---
+ggsave(
+  'figures/png/05-B-map-LAC-cdm.png',
+  plot = plot_lac_cdm_map + labs(title = ''),
+  height = conf_lac_height,
+  width = conf_lac_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/05-B-map-LAC-cdm.svg',
+  plot = plot_lac_cdm_map + labs(title = ''),
+  height = conf_lac_height,
+  width = conf_lac_width,
+  dpi = conf_dpi
+)
+```
+
+## Existing conflicts
+
+```{r}
+#| label: "map conflcits, PCN & CDM"
+#| warning: false
+# --- Create layer ---
+conflicts <- pcn_locations %>%
+  select(id, conflict) %>%
+  mutate(ref = NA, cpa_number = NA, source = "PCN") %>%
+  bind_rows(
+    cdm_locations %>%
+      select(ref, cpa_number, conflict) %>%
+      mutate(id = NA, source = "CDM")
+  ) %>%
+  select(source, id, ref, cpa_number, conflict) %>%
+  mutate(size = ifelse(!is.na(conflict), 2, 1))
+
+# --- Map conflicts ---
+plot_map_conflicts <- ggplot() +
+  basemap +
+  # --- Conflicts legend ---
+  geom_sf(
+    data = conflicts,
+    aes(col = source),
+    alpha = 0
+  ) +
+  scale_color_manual(values = pal_pcn_cdm) +
+  guides(
+    color = guide_legend(override.aes = list(alpha = 1), title = "Source")
+  ) +
+
+  new_scale_color() +
+  geom_sf(
+    data = conflicts,
+    aes(shape = conflict, col = conflict),
+    fill = "white",
+    alpha = 0
+  ) +
+  scale_shape_manual(values = c(23), na.value = 21) +
+  scale_color_manual(values = c("red"), na.value = "transparent") +
+  guides(
+    color = guide_legend(override.aes = list(alpha = 1), title = "Conflict"),
+    shape = guide_legend(override.aes = list(alpha = 1), title = "Conflict")
+  ) +
+
+  # --- NA conflicts ---
+  geom_sf(
+    data = filter(conflicts, source == "PCN" & is.na(conflict)),
+    size = 1,
+    shape = 16,
+    col = col_pcn
+  ) +
+  geom_sf(
+    data = filter(conflicts, source == "CDM" & is.na(conflict)),
+    size = 1,
+    shape = 16,
+    col = col_cdm
+  ) +
+
+  # # --- Conflicts ---
+  geom_sf(
+    data = filter(conflicts, source == "PCN" & conflict),
+    size = 2.2,
+    shape = 23,
+    fill = col_pcn_darker,
+    col = "red"
+  ) +
+  geom_sf(
+    data = filter(conflicts, source == "CDM" & conflict),
+    size = 2.2,
+    shape = 23,
+    fill = col_cdm_darker,
+    col = "red"
+  ) +
+  # Theme
+  theme_void() +
+  labs(title = "Location and presence of conflicts by project source")
+
+plot_map_conflicts
+
+# --- Export map ---
+ggsave(
+  'figures/png/07-map-conflicts.png',
+  plot = plot_map_conflicts + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+
+ggsave(
+  'figures/svg/07-map-conflicts.svg',
+  plot = plot_map_conflicts + labs(title = ''),
+  height = conf_save_worldmap_height,
+  width = conf_save_worldmap_width,
+  dpi = conf_dpi
+)
+```

@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='504.00pt' height='432.00pt' viewBox='0 0 504.00 432.00'>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.00;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect width='100%' height='100%' style='stroke: none; fill: #FFFFFF;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1MDQuMDB8MC4wMHw0MzIuMDA='>
+    <rect x='0.00' y='0.00' width='504.00' height='432.00' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1MDQuMDB8MC4wMHw0MzIuMDA=)'>
+<rect x='0.000000000000064' y='0.00' width='504.00' height='432.00' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
+</g>
+<defs>
+  <clipPath id='cpMzIuODB8MzA5LjYwfDIyLjc4fDQwMS4xMA=='>
+    <rect x='32.80' y='22.78' width='276.81' height='378.32' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMzIuODB8MzA5LjYwfDIyLjc4fDQwMS4xMA==)'>
+<polyline points='32.80,322.49 309.60,322.49 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='32.80,199.66 309.60,199.66 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='32.80,76.83 309.60,76.83 ' style='stroke-width: 0.53; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='32.80,383.90 309.60,383.90 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='32.80,261.07 309.60,261.07 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<polyline points='32.80,138.24 309.60,138.24 ' style='stroke-width: 1.07; stroke: #EBEBEB; stroke-linecap: butt;' />
+<rect x='42.68' y='39.98' width='59.32' height='98.26' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #72AAA1;' />
+<rect x='42.68' y='138.24' width='59.32' height='245.66' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #F1EAC8;' />
+<rect x='240.40' y='64.54' width='59.32' height='319.36' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #CCCCCC;' />
+<rect x='108.59' y='236.51' width='59.32' height='24.57' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #72AAA1;' />
+<rect x='108.59' y='261.07' width='59.32' height='122.83' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #F1EAC8;' />
+<rect x='174.49' y='261.07' width='59.32' height='73.70' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #72AAA1;' />
+<rect x='174.49' y='334.77' width='59.32' height='49.13' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #F1EAC8;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1MDQuMDB8MC4wMHw0MzIuMDA=)'>
+<text x='27.86' y='386.93' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='4.89px' lengthAdjust='spacingAndGlyphs'>0</text>
+<text x='27.86' y='264.10' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='4.89px' lengthAdjust='spacingAndGlyphs'>5</text>
+<text x='27.86' y='141.27' text-anchor='end' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='9.78px' lengthAdjust='spacingAndGlyphs'>10</text>
+<text x='72.34' y='412.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='54.25px' lengthAdjust='spacingAndGlyphs'>Direct overlap</text>
+<text x='138.25' y='412.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='48.38px' lengthAdjust='spacingAndGlyphs'>Within 10km</text>
+<text x='204.15' y='412.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='48.38px' lengthAdjust='spacingAndGlyphs'>Within 50km</text>
+<text x='270.06' y='412.09' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arimo";' textLength='21.03px' lengthAdjust='spacingAndGlyphs'>None</text>
+<text x='326.04' y='187.07' style='font-size: 11.00px; font-family: "Arimo";' textLength='167.00px' lengthAdjust='spacingAndGlyphs'>IPs&amp;LC territory recognition status</text>
+<rect x='326.75' y='194.40' width='15.86' height='15.86' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #72AAA1;' />
+<rect x='326.75' y='211.68' width='15.86' height='15.86' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #F1EAC8;' />
+<rect x='326.75' y='228.96' width='15.86' height='15.86' style='stroke-width: 1.07; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #CCCCCC;' />
+<text x='348.80' y='205.36' style='font-size: 8.80px; font-family: "Arimo";' textLength='88.03px' lengthAdjust='spacingAndGlyphs'>Acknowledged by govt</text>
+<text x='348.80' y='222.64' style='font-size: 8.80px; font-family: "Arimo";' textLength='36.69px' lengthAdjust='spacingAndGlyphs'>Unknown</text>
+<text x='348.80' y='239.92' style='font-size: 8.80px; font-family: "Arimo";' textLength='12.23px' lengthAdjust='spacingAndGlyphs'>NA</text>
+</g>
+</g>
+</svg>
