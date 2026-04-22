@@ -66,8 +66,6 @@ library(paletteer)
 
 library(ggnewscale)
 library(scatterpie)
-
-library(patchwork)
 ```
 
 <!-- READ DATA -->
